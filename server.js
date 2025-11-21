@@ -9,15 +9,19 @@ const app = express();
 const PORT = process.env.PORT || 8787;
 const MAX_BYTES = 25 * 1024 * 1024;
 
+// 🔹 ADD THIS LINE (JSON body parser)
+app.use(express.json({ limit: '1mb' }));
+
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') {
     return res.sendStatus(204);
   }
   next();
 });
+
 
 // simple fetch proxy (uses Node 18+ global fetch)
 app.get('/fetch', async (req, res) => {
@@ -63,6 +67,7 @@ app.post('/openai/chat', async (req, res) => {
       ? incomingAuth.slice(7)
       : (process.env.OPENAI_API_KEY || '');
     if (!key) return res.status(401).json({ error: 'Missing API key' });
+
     const r = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -71,7 +76,11 @@ app.post('/openai/chat', async (req, res) => {
       },
       body: JSON.stringify({ model, messages, max_tokens, temperature })
     });
+
     const text = await r.text();
+    console.log('OpenAI status:', r.status);
+    console.log('OpenAI response:', text);   // <--- add this line
+
     res.status(r.status).type('application/json').send(text);
   } catch (e) {
     console.error('OpenAI proxy error:', e);
